@@ -280,10 +280,14 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
     @objc func didTapOnView(recognizer: UIGestureRecognizer) {
         if noteEditState == .editing {
             let saveButtonWasTapped = saveButton.frame.contains(recognizer.location(in: view))
-            if !saveButtonWasTapped {
-                if let userNoteDataManager = userNoteDataManager,
-                   let viewModel = viewModel,
-                   userNoteDataManager.storage[viewModel.username] != noteTextView.text {
+            if !saveButtonWasTapped,
+               let userNoteDataManager = userNoteDataManager,
+               let viewModel = viewModel {
+                if let storedNote = userNoteDataManager.storage[viewModel.username],
+                   storedNote != noteTextView.text {
+                    noteTextView.resignFirstResponder()
+                    showSaveAlert()
+                } else if !noteTextView.text.isEmpty {
                     noteTextView.resignFirstResponder()
                     showSaveAlert()
                 } else {
