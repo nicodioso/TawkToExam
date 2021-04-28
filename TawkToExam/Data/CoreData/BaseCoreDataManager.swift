@@ -22,16 +22,6 @@ class BaseCoreDataManager<T: CoreDataCoder> {
         self.entityName = entityName
     }
     
-//     func decode(_ object: NSManagedObject) throws -> T {
-//        // Override this
-//        fatalError("No decode function was set")
-//    }
-//
-//    func encode(_ data: T) -> [String:Any] {
-//        // Override this
-//        fatalError("No encode function was set")
-//    }
-    
     func retrieveAll(completion: (Result<[T.DataModel], CoreDataManagerError>)->()) {
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: entityName)
         
