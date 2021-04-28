@@ -23,7 +23,6 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
     @IBOutlet weak var blogLinkLabel: UILabel!
     @IBOutlet weak var dpImageView: CachingImageView!
     @IBOutlet weak var noteTextView: UITextView!
-    @IBOutlet weak var editButton: UIButton!
     @IBOutlet weak var saveButton: UIButton!
     
     @IBOutlet weak var sheetBtmConstraint: NSLayoutConstraint!
@@ -32,18 +31,19 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
     var noteTextViewPlaceholder: UILabel?
     
     enum NoteState {
-        case editing, notEditing, empty
+        case editing, notSavedEditing, notEditing
     }
     
-    var noteState: NoteState = .empty {
+    var noteEditState: NoteState = .notEditing {
         didSet {
             handleNoteStateChange()
         }
     }
+    /// Expects: user's login name, note body text
+    var saveNoteCompletion: ((String, String)->())?
     
-    var didSaveNote: ((String)->())?
-    
-    static var allProfiles: [String: UserProfileInfo] = [:]
+    var userProfileInfoDataManager: UserProfileInfoCoreDataManager?
+    var userNoteDataManager: UserNoteCoreDataManager?
 
     var viewModel: ProfileViewModel? {
         didSet {
@@ -53,28 +53,26 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
                 DispatchQueue.main.async {
                     self?.setValues(userProfileInfo)
                     self?.saveToAllProfilesAsObject(userProfileInfo)
-                    UserProfileInfoCoreDataManager.save(userProfileInfo)
+                    self?.userProfileInfoDataManager?.save(userProfileInfo)
                 }
             }
         }
     }
     @IBOutlet weak var noteBoxBottomConstraint: NSLayoutConstraint!
     
-    @IBAction func editBtnTapped(_ sender: Any) {
-        noteState = .editing
-        noteTextView.becomeFirstResponder()
-        noteBoxBottomConstraint.constant = 10
-    }
-    
     @IBAction func saveBtnTapped(_ sender: Any) {
-        noteState = noteTextView.text.isEmpty ? .empty: .notEditing
+        noteEditState = .notEditing
         noteTextView.resignFirstResponder()
         
         guard let username = viewModel?.username else { return }
         let userNote = UserNote(username: username, noteBody: noteTextView.text)
-        UserNoteCoreDataManager.save(userNote)
-        UserNoteCoreDataManager.storage[username] = userNote.noteBody
-        didSaveNote?(userNote.noteBody)
+        userNoteDataManager?.save(userNote)
+        userNoteDataManager?.storage[username] = userNote.noteBody
+        
+        if let viewModel = viewModel,
+           let saveNoteCompletion = saveNoteCompletion {
+            saveNoteCompletion(viewModel.username, userNote.noteBody)
+        }
     }
     
     override func viewDidLoad() {
@@ -125,52 +123,53 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     private func handleNoteStateChange() {
-        switch noteState {
+        switch noteEditState {
         case .editing:
             saveButton.isHidden = false
-            editButton.isHidden = true
-            noteTextView.isEditable = true
             noteTextViewPlaceholder?.isHidden = true
             noteBoxBottomConstraint.constant = 0
+            navigationItem.setHidesBackButton(true, animated: true)
+        case .notSavedEditing:
+            saveButton.isHidden = false
+            noteTextViewPlaceholder?.isHidden = !noteTextView.text.isEmpty
+            noteBoxBottomConstraint.constant = 10
+            UIView.animate(withDuration: 0.3) {
+                self.view.layoutIfNeeded()
+            }
+            navigationItem.setHidesBackButton(false, animated: true)
+            noteTextView.resignFirstResponder()
         case .notEditing:
             saveButton.isHidden = true
-            editButton.isHidden = false
-            noteTextView.isEditable = false
-            noteTextViewPlaceholder?.isHidden = true
+            noteTextViewPlaceholder?.isHidden = !noteTextView.text.isEmpty
             noteBoxBottomConstraint.constant = -24
             UIView.animate(withDuration: 0.3) {
                 self.view.layoutIfNeeded()
             }
-        case .empty:
-            saveButton.isHidden = true
-            editButton.isHidden = true
-            noteTextView.isEditable = true
-            noteTextViewPlaceholder?.isHidden = false
-            noteBoxBottomConstraint.constant = -24
-            UIView.animate(withDuration: 0.3) {
-                self.view.layoutIfNeeded()
-            }
+            navigationItem.setHidesBackButton(false, animated: true)
+            noteTextView.resignFirstResponder()
         }
     }
     
     private func setStoredValues() {
         if let viewModel = viewModel {
-            if let storedProfileInfo = ProfileViewController.allProfiles[viewModel.username] {
+            if let profileInfoDataManager = userProfileInfoDataManager,
+                let storedProfileInfo = profileInfoDataManager.storage[viewModel.username] {
                 setValues(storedProfileInfo)
             }
-            if let noteBody = UserNoteCoreDataManager.storage[viewModel.username],
+            if let noteBody = userNoteDataManager?.storage[viewModel.username],
                !noteBody.isEmpty {
                 noteTextView.text = noteBody
             } else {
                 noteTextView.text = ""
-                noteState = .empty
+                noteEditState = .notEditing
             }
         }
     }
     
     private func retrieveAllProfilesIfNeeded() {
-        if ProfileViewController.allProfiles.isEmpty {
-            UserProfileInfoCoreDataManager.retrieveAll { result in
+        if let profileInfoDataManager = userProfileInfoDataManager,
+           profileInfoDataManager.storage.isEmpty {
+            userProfileInfoDataManager?.retrieveAll { result in
                 switch result {
                 case .failure(_):
                     break
@@ -182,7 +181,7 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     private func saveToAllProfilesAsObject(_ profileInfo: UserProfileInfo) {
-        ProfileViewController.allProfiles[profileInfo.login] = profileInfo
+        userProfileInfoDataManager?.storage[profileInfo.login] = profileInfo
     }
     
     private func setValues(_ userProfileInfo: UserProfileInfo) {
@@ -279,12 +278,36 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     @objc func didTapOnView(recognizer: UIGestureRecognizer) {
-        if noteState == .editing {
-            noteTextView.resignFirstResponder()
-            if noteTextView.text.isEmpty {
-                noteState = .empty
+        if noteEditState == .editing {
+            let saveButtonWasTapped = saveButton.frame.contains(recognizer.location(in: view))
+            if !saveButtonWasTapped {
+                if let userNoteDataManager = userNoteDataManager,
+                   let viewModel = viewModel,
+                   userNoteDataManager.storage[viewModel.username] != noteTextView.text {
+                    noteTextView.resignFirstResponder()
+                    showSaveAlert()
+                } else {
+                    noteEditState = .notEditing
+                }
             }
         }
+    }
+    
+    private func showSaveAlert() {
+        let alertController = UIAlertController(title: "Do you want to save your note?", message: nil, preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "Yes", style: .default, handler: { [weak self] action in
+            self?.saveBtnTapped(action)
+        }))
+        alertController.addAction(UIAlertAction(title: "No", style: .destructive, handler: { [weak self] _ in
+            alertController.dismiss(animated: true, completion: nil)
+            UIView.animate(withDuration: 0.3) {
+                self?.view.layoutIfNeeded()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self?.noteEditState = .notSavedEditing
+            }
+        }))
+        present(alertController, animated: true, completion: nil)
     }
     
     private func fetchProfileInfo(completion: @escaping (UserProfileInfo)->()) {
@@ -316,8 +339,7 @@ class ProfileViewController: UIViewController, UIGestureRecognizerDelegate {
 
 extension ProfileViewController: UITextViewDelegate {
     func textViewDidBeginEditing(_ textView: UITextView) {
-        if textView.text.isEmpty {
-            noteState = .editing
-        }
+        noteEditState = .editing
+        noteBoxBottomConstraint.constant = 10
     }
 }

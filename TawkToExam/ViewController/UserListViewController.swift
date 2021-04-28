@@ -9,6 +9,9 @@ import UIKit
 
 class UserListViewController: UIViewController {
     let tableView = UserTableView()
+    let rowDataManager = UserRowCoreDataManager()
+    let profileInfoDataManager = UserProfileInfoCoreDataManager()
+    let noteDataManager = UserNoteCoreDataManager()
     
     let searchController = UISearchController(searchResultsController: nil)
     var isSearchBarEmpty: Bool {
@@ -22,8 +25,9 @@ class UserListViewController: UIViewController {
         setupViews()
         setupTableView()
         setupSearchController()
-        
-        UserNoteCoreDataManager.getAllDataAndStore()
+        noteDataManager.getAllDataAndStore { [weak self] noteDict in
+            self?.tableView.viewModel.userNotesDictionary = noteDict
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(handleChangeInNetworkConnection(_:)), name: .networkConnectionChanged, object: nil)
     }
     
@@ -53,6 +57,7 @@ class UserListViewController: UIViewController {
         
         NSLayoutConstraint.activate(constraints)
     }
+    
     private func setupTableView() {
         refreshControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
         refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
@@ -72,7 +77,7 @@ class UserListViewController: UIViewController {
             self?.tableView.isLoading = true
             self?.fetchUsers(fromUserID: lastUserID) { users in
                 DispatchQueue.main.async {
-                    users.forEach{ UserRowCoreDataManager.save($0) }
+                    users.forEach{ self?.rowDataManager.save($0) }
                     self?.tableView.viewModel.allUsers += users
                     self?.tableView.isLoading = false
                 }
@@ -82,9 +87,12 @@ class UserListViewController: UIViewController {
         tableView.didSelectUserRow = { [weak self] user in
             let vc = ProfileViewController()
             vc.viewModel = ProfileViewModel(user: user)
-            vc.didSaveNote = { [weak self] noteText in
+            vc.saveNoteCompletion = { [weak self] (username, noteText) in
+                self?.tableView.viewModel.userNotesDictionary[username] = noteText
                 self?.tableView.reloadData()
             }
+            vc.userProfileInfoDataManager = self?.profileInfoDataManager
+            vc.userNoteDataManager = self?.noteDataManager
             self?.navigationController?.pushViewController(vc, animated: true)
         }
     }
@@ -107,7 +115,7 @@ class UserListViewController: UIViewController {
     }
     
     private func loadUserRowDataFromDisk(completion: @escaping (([UserRowData])->())) {
-        UserRowCoreDataManager.retrieveAll { result in
+        rowDataManager.retrieveAll { result in
             switch result {
             case .failure(_):
                 completion([])
@@ -118,9 +126,9 @@ class UserListViewController: UIViewController {
     }
     
     private func replaceSavedUsers(with newArray: [UserRowData]) {
-        UserRowCoreDataManager.clearAll { success in
+        rowDataManager.clearAll { [weak self] success in
             guard success else { return }
-            newArray.forEach{ UserRowCoreDataManager.save($0) }
+            newArray.forEach{ self?.rowDataManager.save($0) }
         }
     }
     

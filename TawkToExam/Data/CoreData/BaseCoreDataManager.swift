@@ -1,38 +1,45 @@
 //
-//  CoreDataManager.swift
+//  BaseCoreDataManager.swift
 //  TawkToExam
 //
-//  Created by Nico Adrianne Dioso on 4/21/21.
+//  Created by Nico Adrianne Dioso on 4/28/21.
 //
 
-import UIKit
 import CoreData
+import UIKit
 
-protocol CoreDataManager {
-    associatedtype DataModel
-    static var entityName: String { get }
+class BaseCoreDataManager<T: CoreDataCoder> {
+    let managedContext: NSManagedObjectContext
+    let entityName: String
+    lazy var coder = T()
     
-    static func decode(_ object: NSManagedObject) throws -> DataModel
-    static func encode(_ data: DataModel) -> [String:Any]
-}
-
-extension CoreDataManager {
-    static var appDelegate: AppDelegate {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
-            fatalError("app delegate not found")
+    init(entityName: String, context: NSManagedObjectContext? = nil ) {
+        if let context = context {
+            managedContext = context
+        } else  {
+            managedContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
         }
-        return appDelegate
+        self.entityName = entityName
     }
     
-    static func retrieveAll(completion: (Result<[DataModel], CoreDataManagerError>)->()) {
-        let managedContext = self.appDelegate.persistentContainer.viewContext
+//     func decode(_ object: NSManagedObject) throws -> T {
+//        // Override this
+//        fatalError("No decode function was set")
+//    }
+//
+//    func encode(_ data: T) -> [String:Any] {
+//        // Override this
+//        fatalError("No encode function was set")
+//    }
+    
+    func retrieveAll(completion: (Result<[T.DataModel], CoreDataManagerError>)->()) {
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: entityName)
         
         do {
             let rawData = try managedContext.fetch(fetchRequest)
-            var outputData = [DataModel]()
+            var outputData = [T.DataModel]()
             rawData.forEach { object in
-                guard let decoded = try? decode(object)
+                guard let decoded = try? coder.decode(object)
                 else {
                     print("Error || could not decode object")
                     return
@@ -46,11 +53,9 @@ extension CoreDataManager {
         }
     }
     
-    static func save(_ data: DataModel, completion: ((Bool)->())? = nil) {
-        let newRowData = self.encode(data)
-        
-        let managedContext = self.appDelegate.persistentContainer.viewContext
-        let entity = NSEntityDescription.entity(forEntityName: self.entityName,
+    func save(_ data: T.DataModel, completion: ((Bool)->())? = nil) {
+        let newRowData = coder.encode(data)
+        let entity = NSEntityDescription.entity(forEntityName: entityName,
                                                 in: managedContext)!
         let userRowDataEntity = NSManagedObject(entity: entity,
                                                 insertInto: managedContext)
@@ -68,14 +73,13 @@ extension CoreDataManager {
         }
     }
     
-    static func clearAll(completion: ((Bool)->())? = nil) {
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: self.entityName)
+    func clearAll(completion: ((Bool)->())? = nil) {
+        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: entityName)
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
-        let managedContext = self.appDelegate.persistentContainer.viewContext
         
         do {
             try managedContext.execute(deleteRequest)
-            try managedContext.save()
+//            try managedContext.save()
             completion?(true)
         } catch {
             print("Error || Could not clear User row data saved")
@@ -84,8 +88,3 @@ extension CoreDataManager {
         }
     }
 }
-
-enum CoreDataManagerError: Error {
-    case parseFailure
-}
-

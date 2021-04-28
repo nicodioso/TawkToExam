@@ -18,16 +18,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 fatalError("Unresolved error, \((error as NSError).userInfo)")
             }
         })
+        
         return container
     }()
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
         
+        #if !UNIT_TEST
         // Not ideal, but given the time and scale of project, I didn't want to add 3rd party dependencies
-        
         ReachabilityObserver.shared.start()
-        
+        #endif
         return true
     }
 

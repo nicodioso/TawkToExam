@@ -11,12 +11,6 @@ class UserTableViewModel {
     var didUpdateUserList: (()->())?
     var standardIdentifier = "standard"
     var invertedIdentifier = "inverted"
-    
-    var isFiltering = false {
-        didSet {
-            didUpdateUserList?()
-        }
-    }
     var lastUserIDFetched = 0
     
     var allUsers: [UserRowData] = [] {
@@ -30,9 +24,14 @@ class UserTableViewModel {
         }
     }
     
-    var filteredUsers: [UserRowData] = []
+    var userNotesDictionary: [String: String] = [:]
     
-    var userImageData: [Int: UIImage] = [:]
+    var isFiltering = false {
+        didSet {
+            didUpdateUserList?()
+        }
+    }
+    var filteredUsers: [UserRowData] = []
     
     var visibleUsers: [UserRowData] {
         return isFiltering ? filteredUsers: allUsers
@@ -63,7 +62,7 @@ class UserTableViewModel {
                 let textSearchesAdmin = adminText.contains(searchText.lowercased()) && user.siteAdmin
                 var textMatchesUserNote = false
                 
-                if let userNote = UserNoteCoreDataManager.storage[user.login] {
+                if let userNote = userNotesDictionary[user.login] {
                     textMatchesUserNote = userNote.lowercased().contains(searchText.lowercased())
                 }
                 
@@ -86,7 +85,7 @@ class UserTableViewModel {
     
     func checkNoteExistence(forUserIn index: Int) -> Bool {
         let user = getUser(for: index)
-        if let noteText = UserNoteCoreDataManager.storage[user.login],
+        if let noteText = userNotesDictionary[user.login],
            !noteText.isEmpty {
             return true
         }

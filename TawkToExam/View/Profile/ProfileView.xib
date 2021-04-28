@@ -14,7 +14,6 @@
                 <outlet property="bottomSheetView" destination="jSL-zK-D2S" id="opu-ah-5W7"/>
                 <outlet property="companyLabel" destination="erG-Cd-TuG" id="dkE-iw-vZr"/>
                 <outlet property="dpImageView" destination="ZMC-Ng-bjG" id="2Fi-bf-gwM"/>
-                <outlet property="editButton" destination="JEW-Hf-atQ" id="o18-8I-Rs1"/>
                 <outlet property="followersLabel" destination="Med-hW-eG5" id="rj2-Bu-ZHS"/>
                 <outlet property="followingLabel" destination="PDd-TH-vJD" id="j0g-Mk-ji7"/>
                 <outlet property="fullNameLabel" destination="BG7-EI-0Ds" id="CZ2-zy-Ji2"/>
@@ -145,13 +144,6 @@
                         <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="plC-yF-7wN" userLabel="NoteBox">
                             <rect key="frame" x="20" y="216" width="374" height="202"/>
                             <subviews>
-                                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="JEW-Hf-atQ">
-                                    <rect key="frame" x="334" y="10" width="30" height="30"/>
-                                    <state key="normal" title="Edit"/>
-                                    <connections>
-                                        <action selector="editBtnTapped:" destination="-1" eventType="touchUpInside" id="ZdD-Ih-lCG"/>
-                                    </connections>
-                                </button>
                                 <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="SKS-cA-yI5" customClass="NoteIconView" customModule="TawkToExam" customModuleProvider="target">
                                     <rect key="frame" x="10" y="10" width="30" height="30"/>
                                     <color key="backgroundColor" red="0.16862745098039217" green="0.19607843137254902" blue="0.21176470588235294" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
@@ -169,7 +161,7 @@
                                 <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="xLh-c1-bgu" userLabel="TextView or Add Btn">
                                     <rect key="frame" x="10" y="58" width="354" height="129"/>
                                     <subviews>
-                                        <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" editable="NO" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="ePu-uF-uER">
+                                        <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="ePu-uF-uER">
                                             <rect key="frame" x="0.0" y="0.0" width="354" height="129"/>
                                             <color key="backgroundColor" systemColor="secondarySystemBackgroundColor"/>
                                             <constraints>
@@ -186,10 +178,8 @@
                             <color key="backgroundColor" systemColor="opaqueSeparatorColor"/>
                             <constraints>
                                 <constraint firstItem="SKS-cA-yI5" firstAttribute="top" secondItem="plC-yF-7wN" secondAttribute="top" constant="10" id="0XK-T8-3DC"/>
-                                <constraint firstItem="JEW-Hf-atQ" firstAttribute="top" secondItem="plC-yF-7wN" secondAttribute="top" constant="10" id="20u-UQ-TUp"/>
                                 <constraint firstItem="t09-d6-ZNr" firstAttribute="leading" secondItem="SKS-cA-yI5" secondAttribute="trailing" constant="5" id="4Eb-KP-nVn"/>
                                 <constraint firstAttribute="trailing" secondItem="xLh-c1-bgu" secondAttribute="trailing" constant="10" id="9vb-Uq-zty"/>
-                                <constraint firstAttribute="trailing" secondItem="JEW-Hf-atQ" secondAttribute="trailing" constant="10" id="EzY-aH-w9y"/>
                                 <constraint firstItem="t09-d6-ZNr" firstAttribute="centerY" secondItem="SKS-cA-yI5" secondAttribute="centerY" id="Ti9-QK-pzH"/>
                                 <constraint firstItem="xLh-c1-bgu" firstAttribute="top" secondItem="SKS-cA-yI5" secondAttribute="bottom" constant="18" id="Tul-r9-Eth"/>
                                 <constraint firstItem="xLh-c1-bgu" firstAttribute="leading" secondItem="plC-yF-7wN" secondAttribute="leading" constant="10" id="ojs-Ed-wxY"/>
